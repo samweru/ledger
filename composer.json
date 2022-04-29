@@ -1,0 +1,11 @@
+{
+    "require": {
+        "flatbase/flatbase": "^0.4.1",
+        "symfony/console": "2.6",
+        "symfony/var-dumper": "2.6",
+        "clue/stdio-react": "2.5",
+        "strukt/commons": "dev-master",
+        "jc21/clitable": "dev-master"
+    },
+    "minimum-stability":"dev"
+}

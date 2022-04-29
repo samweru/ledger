@@ -1,0 +1,10 @@
+php_errors.log
+composer.lock
+vendor
+flatbase/coa
+flatbase/trx_alloc
+flatbase/trx
+flatbase/trx_queue
+flatbase/trx_type
+tasker
+
