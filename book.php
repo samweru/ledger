@@ -17,20 +17,7 @@ $stdio->setPrompt('Input > ');
 
 $stdio->setAutocomplete(function() use($flatbase, $stdio, $book){
 
-    $rows = $book->getMeta();
-
     $line = trim($stdio->getInput());
-
-    $arg1 = Str::create($line);
-
-    if($arg1->startsWith("sch") && !$arg1->startsWith("sch last"))
-        $line = "trx";
-
-    if(!empty(@$rows[$line])){
-
-        $ls = array_merge([""], array_keys($rows[$line]));
-        echo(sprintf("\n%s\n", implode("\n", $ls)));
-    }
 
     $stdio->moveCursorBy(0);
 
@@ -42,8 +29,6 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
     $line = rtrim($line);
 
     $all = $stdio->listHistory();
-
-    $rows = $book->getMeta();
 
     // skip empty line and duplicate of previous line
     if ($line !== '' && $line !== end($all)) {
@@ -103,11 +88,13 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
     /**
      *  sch <trx_type> <tenant_no> <amt>
      */
-    Cli::cmd("sch", function(string $trx_type, $tenant_no, $amt) use($book, $rows){
+    Cli::cmd("sch", function(string $trx_type, $tenant_no, $amt) use($book){
 
-        if(array_key_exists($trx_type, $rows["trx"])){
+        $trxType = $book->withTrxType($trx_type);
 
-            if($rows["trx"][$trx_type] == "schedule"){
+        if($trxType->exists()){
+
+            if($trxType->isType("schedule")){
 
                 $token = sprintf("type:tenant|id:%s", $tenant_no);
 
@@ -157,11 +144,13 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
     /**
      * trx <trx_type> <trx_no> <amt>
      */
-    Cli::cmd("trx", function($trx_type, $trx_no, $amt = null) use($book, $rows){
+    Cli::cmd("trx", function($trx_type, $trx_no, $amt = null) use($book){
 
-        if(array_key_exists($trx_type, $rows["trx"])){
+        $trxType = $book->withTrxType($trx_type);
 
-            if($rows["trx"][$trx_type] == "payment"){
+        if($trxType->exists()){
+
+            if($trxType->isType("payment")){
 
                 try{
 

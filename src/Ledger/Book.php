@@ -111,8 +111,7 @@ class Book{
 
         list($dr, $cr) = explode("|", $rTrxType["token"]);
 
-        $this->withDebit($dr, $amt);
-        $this->withCredit($cr, $amt);
+        $this->withAmount($amt)->doDebit($dr)->doCredit($cr)->transfer();
     }
 
     public function getBal($trx_no){
@@ -133,23 +132,34 @@ class Book{
         return Number::create($sch["amount"])->subtract($trx["amount"])->yield();
     }
 
-    public function getMeta(){
+    public function withTrxType($trx_type){
 
-        $rsCoa = $this->db->read()->in("coa")->get()->getArrayCopy();
+        $trxs = null;
         $rsTrxType = $this->db->read()->in("trx_type")->get()->getArrayCopy();
-
-        $rows = [];
-
-        foreach($rsCoa as $rCoa)
-                $rows["coa"][] = $rCoa["name"]; 
-
         foreach($rsTrxType as $rTrxType)
-            $rows["trx"][$rTrxType["name"]] = $rTrxType["type"];
+            $trxs[$rTrxType["name"]] = $rTrxType["type"];
 
-        return $rows;
-    }   
+        return new class($trxs, $trx_type){
 
-    public function withDebit($coa_name, $amt){
+            public function __construct(array $trxs, string $trx_type){
+
+                $this->trxs = $trxs;
+                $this->trx_type = $trx_type;
+            }
+
+            public function exists(){
+
+                return array_key_exists($this->trx_type, $this->trxs);
+            }
+
+            public function isType($type){
+
+                return $this->trxs[$this->trx_type] == $type;
+            }
+        };
+    }
+
+    public function getAlloc($coa_name){
 
         $coa = $this->db->read()->in("coa")
             ->where("name", "==", $coa_name)
@@ -164,50 +174,84 @@ class Book{
             ->get()
             ->first();
 
-        $bal = Number::create($alloc["balance"]);
-        if(in_array($type, ["liability", "revenue"]))
-            $bal = $bal->subtract($amt);
+        $alloc["type"] = $type;
 
-        if(in_array($type, ["asset", "equity", "expense"]))
-            $bal = $bal->add($amt);
-
-        $this->db->update()->in('trx_alloc')
-            ->set([
-
-                "balance"=>$bal->yield()
-            ])
-            ->where("name", "==", $coa_name)
-            ->execute();
+        return $alloc;
     }
 
-    public function withCredit($coa_name, $amt){
+    public function withAmount($amt){
 
-         $coa = $this->db->read()->in("coa")
-            ->where("name", "==", $coa_name)
-            ->get()
-            ->first();
+        return new class($this, $this->db, $amt){
 
-        list($coa_type, $term) = explode("|", $coa["rules"]);
-        list($key, $type) = explode(":", $coa_type);
+            private $book;
+            private $db;
+            private $amt;
+            private $trx;
 
-        $alloc = $this->db->read()->in('trx_alloc')
-            ->where("name", "==", $coa_name)
-            ->get()
-            ->first();
+            public function __construct($book, $db, $amt){
 
-        $bal = Number::create($alloc["balance"]);
-        if(in_array($type, ["liability", "revenue"]))
-            $bal = $bal->add($amt);
+                $this->book = $book;
+                $this->db = $db;
+                $this->amt = $amt;
+                $this->trx = [];
+            }
 
-        if(in_array($type, ["asset", "equity", "expense"]))
-            $bal = $bal->subtract($amt);
+            public function doDebit(string $coa_name){
 
-        $this->db->update()->in('trx_alloc')
-            ->set([
+                $alloc = $this->book->getAlloc($coa_name);
 
-                "balance"=>$bal->yield()
-            ])
-            ->where("name", "==", $coa_name)
-            ->execute();
+                $bal = Number::create($alloc["balance"]);
+                if(in_array($alloc["type"], ["liability", "revenue"]))
+                    $bal = $bal->subtract($this->amt);
+
+                if(in_array($alloc["type"], ["asset", "equity", "expense"]))
+                    $bal = $bal->add($this->amt);    
+
+                $this->trx["dr"] = array(
+
+                    "coa"=> $coa_name,
+                    "bal"=> $bal->yield()
+                );
+
+                return $this;
+            }
+
+            public function doCredit(string $coa_name){
+
+                $alloc = $this->book->getAlloc($coa_name);
+
+                $bal = Number::create($alloc["balance"]);
+                if(in_array($alloc["type"], ["liability", "revenue"]))
+                    $bal = $bal->add($this->amt);
+
+                if(in_array($alloc["type"], ["asset", "equity", "expense"]))
+                    $bal = $bal->subtract($this->amt);
+
+                $this->trx["cr"] = array(
+
+                    "coa" => $coa_name,
+                    "bal" => $bal->yield()
+                );
+
+                return $this;
+            }
+
+            private function doAlloc(array $trx){
+
+                $this->db->update()->in('trx_alloc')
+                    ->set([
+
+                        "balance"=>$trx["bal"]
+                    ])
+                    ->where("name", "==", $trx["coa"])
+                    ->execute();
+            }
+
+            public function transfer(){
+
+                $this->doAlloc($this->trx["cr"]);
+                $this->doAlloc($this->trx["dr"]);
+            }
+        };
     }
 }
