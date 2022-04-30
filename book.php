@@ -5,6 +5,8 @@ require "bootstrap.php";
 use Strukt\Type\Str;
 use Strukt\Type\Json;
 use Strukt\Type\Number;
+use Strukt\Fs;
+
 use Ledger\Cli;
 
 $storage = new Flatbase\Storage\Filesystem('./flatbase');
@@ -15,6 +17,7 @@ $book = new Ledger\Book($flatbase);
 $stdio = new Clue\React\Stdio\Stdio();
 $stdio->setPrompt('Book> ');
 
+
 $stdio->setAutocomplete(function() use($flatbase, $stdio, $book){
 
     $line = trim($stdio->getInput());
@@ -23,6 +26,11 @@ $stdio->setAutocomplete(function() use($flatbase, $stdio, $book){
 
     return [];
 });
+
+// load history
+$all = explode("\n", Strukt\Fs::cat(".history"));
+foreach($all as $history)
+    $stdio->addHistory($history);
 
 $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
 
@@ -34,7 +42,9 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
     if ($line !== '' && $line !== end($all)) {
 
         $stdio->addHistory($line);
-    }
+        $all[] = $line;
+        Fs::overwrite(".history", implode("\n", $all));
+    } 
 
     Cli::cmd("exit", function() use($stdio){
 
@@ -47,10 +57,21 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
 
             Cli::run("sch ?"),
             Cli::run("trx ?"),
-            Cli::run("bal ?")
+            Cli::run("bal ?"),
+            "trx:type ls"
         );
 
         return implode("\n", $help);
+    });
+
+    Cli::cmd("trx:type ls", function() use($flatbase){
+
+        $rs = $flatbase->read()->in("trx_type")->get()->getArrayCopy();
+
+        foreach($rs as $row)
+            $rows[] = $row["name"];
+
+        return implode("\n", $rows);
     });
 
     Cli::cmd("sch help", function(){
