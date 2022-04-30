@@ -5,6 +5,7 @@ require "bootstrap.php";
 use Strukt\Type\Str;
 use Strukt\Type\Json;
 use Strukt\Type\Number;
+use Ledger\Cli;
 
 $storage = new Flatbase\Storage\Filesystem('./flatbase');
 $flatbase = new Flatbase\Flatbase($storage);
@@ -42,51 +43,51 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
 
     $all = $stdio->listHistory();
 
+    $rows = $book->getMeta();
+
     // skip empty line and duplicate of previous line
     if ($line !== '' && $line !== end($all)) {
 
         $stdio->addHistory($line);
     }
 
-    if ($line === "exit"){
+    Cli::cmd("exit", function() use($stdio){
 
         $stdio->end();
-    }
+    });
 
-    if(in_array($line, ["sch help", "sch ?"])){
+    Cli::cmd("sch ?", function() use($stdio){
 
         $stdio->write("sch <trx_type> <tenant_no> <amount>".PHP_EOL);
         $stdio->write("sch last [<offset>]".PHP_EOL);
-    }
-    elseif(Str::create($line)->startsWith("sch")){
+    });
 
-        $rows = $book->getMeta();
+    /**
+     * sch last [<offset>]
+     */
+    Cli::cmd("sch last", function(int $offset = null) use($flatbase, $stdio){
 
-        $args = explode(" ", $line);
+        $rs = $flatbase->read()->in("trx_queue")->get()->getArrayCopy();
+        $rs = array_reverse($rs);
 
-        $trx_type = $args[1];
+        if(is_null($offset) || $offset < 1)
+            $offset = 1;
 
-        if(Str::create($line)->startsWith("sch last")){
+        array_splice($rs, $offset);
 
-            $rs = $flatbase->read()->in("trx_queue")->get()->getArrayCopy();
-            $rs = array_reverse($rs);
+        $stdio->write(Json::pp($rs) . PHP_EOL);
+    });
 
-            $offset = (int) @$args[2];
-            if(is_null($offset) || $offset < 1)
-                $offset = 1;
+    /**
+     *  sch <trx_type> <tenant_no> <amt>
+     */
+    Cli::cmd("sch", function(string $trx_type, $tenant_no, $amt) use($book, $stdio, $rows){
 
-            array_splice($rs, $offset);
-
-            $stdio->write(Json::pp($rs) . PHP_EOL);
-        }
-        elseif(array_key_exists($trx_type, $rows["trx"])){
-
-            $tno = $args[2];
-            $amt = $args[3];
+        if(array_key_exists($trx_type, $rows["trx"])){
 
             if($rows["trx"][$trx_type] == "schedule"){
 
-                $token = sprintf("type:tenant|id:%s", $tno);
+                $token = sprintf("type:tenant|id:%s", $tenant_no);
 
                 $book->makeSchedule($trx_type, $amt, $token);
 
@@ -94,39 +95,37 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
             }
             else $stdio->write("Transaction must be Type:Schedule!");
         }
-        else $stdio->write('Failed to execute schedule!' . PHP_EOL);        
-    }
+        else $stdio->write('Failed to execute schedule!' . PHP_EOL); 
+    });
 
-    if(in_array($line, ["trx help", "trx ?"])){
+    Cli::cmd("trx ?", function() use($stdio){
 
         $stdio->write("trx <trx_type> <trx_no> [<amount>]".PHP_EOL);
         $stdio->write("trx last [<offset>]".PHP_EOL);
-    }
-    elseif(Str::create($line)->startsWith("trx")){
+    });
 
-        $rows = $book->getMeta();
+    /**
+     * trx last [<offset>]
+     */
+    Cli::cmd("trx last", function(int $offset = null) use($flatbase, $stdio){
 
-        $args = explode(" ", $line);
+        $rs = $flatbase->read()->in("trx")->get()->getArrayCopy();
+        $rs = array_reverse($rs);
 
-        $trx_type = $args[1];
+        if(is_null($offset) || $offset < 1)
+            $offset = 1;
 
-        if(Str::create($line)->startsWith("trx last")){
+        array_splice($rs, $offset);
 
-            $rs = $flatbase->read()->in("trx")->get()->getArrayCopy();
-            $rs = array_reverse($rs);
+        $stdio->write(Json::pp($rs) . PHP_EOL);
+    });
 
-            $offset = (int) @$args[2];
-            if(is_null($offset) || $offset < 1)
-                $offset = 1;
+    /**
+     * trx <trx_type> <trx_no> <amt>
+     */
+    Cli::cmd("trx", function($trx_type, $trx_no, $amt = null) use($book, $stdio, $rows){
 
-            array_splice($rs, $offset);
-
-            $stdio->write(Json::pp($rs) . PHP_EOL);
-        }
-        elseif(array_key_exists($trx_type, $rows["trx"])){
-
-            $trx_no = $args[2];
-            $amt = @$args[3];
+        if(array_key_exists($trx_type, $rows["trx"])){
 
             if($rows["trx"][$trx_type] == "payment"){
 
@@ -144,21 +143,22 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
             else $stdio->write("Transaction must be Type:Payment!");
         }
         else $stdio->write('Failed to execute transaction!' . PHP_EOL);
-        
-    }
+    });
 
-    if(in_array($line, ["bal help", "bal ?"])){
+    Cli::cmd("bal ?", function() use($stdio){
 
         $stdio->write("bal <trx_no>".PHP_EOL);
-    }
-    elseif(Str::create($line)->startsWith("bal")){
+    });
 
-        $args = explode(" ", $line);
+    /**
+     * bal <trx_no>
+     */
+    Cli::cmd("bal", function(string $trx_no) use($book, $stdio){
 
-        $trx_type = $args[1];
-
-        $bal = $book->getBal($trx_type);
+        $bal = $book->getBal($trx_no);
 
         $stdio->write(sprintf("Balance: %s", $bal));
-    }
+    });
+
+    Cli::run($line);        
 });

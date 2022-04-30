@@ -127,6 +127,9 @@ class Book{
             ->get()
             ->first();
 
+        if(is_null($trx))
+            $trx["amount"] = 0;
+
         return Number::create($sch["amount"])->subtract($trx["amount"])->yield();
     }
 
