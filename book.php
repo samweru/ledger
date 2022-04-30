@@ -56,6 +56,23 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
         $stdio->end();
     });
 
+    Cli::cmd("help", function(){
+
+        $help = array(
+
+            Cli::run("sch ?"),
+            Cli::run("trx ?"),
+            Cli::run("bal ?")
+        );
+
+        return implode("\n", $help);
+    });
+
+    Cli::cmd("sch help", function(){
+
+        return Cli::run("sch ?");
+    });
+
     Cli::cmd("sch ?", function(){
 
         $help = array(
@@ -64,7 +81,7 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
             "sch last [<offset>]"
         );
         
-        return sprintf("\n%s", implode("\n", $help));
+        return implode("\n", $help);
     });
 
     /**
@@ -105,6 +122,11 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
         return 'Failed to execute schedule!';
     });
 
+    Cli::cmd("trx help", function(){
+
+        return Cli::run("trx ?");
+    });
+
     Cli::cmd("trx ?", function(){
 
         $help = array(
@@ -113,7 +135,7 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
             "trx last [<offset>]"
         );
 
-        return sprintf("%s", implode("\n", $help));
+        return implode("\n", $help);
     });
 
     /**
@@ -159,6 +181,11 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
         return 'Failed to execute transaction!';
     });
 
+    Cli::cmd("bal help", function(){
+
+        return Cli::run("bal ?");
+    });
+
     Cli::cmd("bal ?", function(){
 
         return "bal <trx_no>";
@@ -174,5 +201,12 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
         return sprintf("Balance: %s", $bal);
     });
 
-    $stdio->write(Cli::run($line));        
+    try{
+        
+        $stdio->write(Cli::run($line));        
+    }
+    catch(\Exception $e){
+
+        $stdio->write($e->getMessage());
+    }
 });

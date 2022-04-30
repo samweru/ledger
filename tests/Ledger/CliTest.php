@@ -21,7 +21,10 @@ class CliTest extends \PHPUnit\Framework\TestCase{
 		 */
 		Cli::cmd("trx", function($trx_type, $tenant_no, $amount){
 
-			return sprintf("trx_type:%s|tenant_no:%s|amount:%s", $trx_type, $tenant_no, $amount);
+			return sprintf("trx_type:%s|tenant_no:%s|amount:%s", 
+							$trx_type, 
+							$tenant_no, 
+							$amount);
 		});
 	}
 
@@ -36,5 +39,10 @@ class CliTest extends \PHPUnit\Framework\TestCase{
 		$expected = "trx_type:Rent:Due|tenant_no:001|amount:1500";
 
 		$this->assertEquals(Cli::run("trx Rent:Due 001 1500"), $expected);	
+	}
+
+	public function testDocs(){
+
+		$this->assertEquals(trim(Cli::run("trx")), "trx <trx_type> <tenant_no> <amount>");
 	}
 }

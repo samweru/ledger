@@ -38,7 +38,7 @@ class Cli{
         if(!empty($doc))
             $doc = Str::create(strval($doc))->replace(["/**","* ", "*/"], "");
 
-        return sprintf(" \n%s", trim($doc));
+        return trim($doc);
 	}
 
 	public static function run(string $line){
