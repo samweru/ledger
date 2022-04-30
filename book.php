@@ -13,7 +13,7 @@ $flatbase = new Flatbase\Flatbase($storage);
 $book = new Ledger\Book($flatbase);
 
 $stdio = new Clue\React\Stdio\Stdio();
-$stdio->setPrompt('Input > ');
+$stdio->setPrompt('Book> ');
 
 $stdio->setAutocomplete(function() use($flatbase, $stdio, $book){
 
