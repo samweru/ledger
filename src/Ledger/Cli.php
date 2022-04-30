@@ -67,13 +67,9 @@ class Cli{
 					->getRef()
 					->getNumberOfRequiredParameters();
 
-		$doc = null;
 		if(count($parts) < $nargs)
-			$doc = static::getDoc($cmd_name);
+			return static::getDoc($cmd_name);
 
-		if(is_null($doc))
-			$cmd->exec();
-		else
-			echo $doc;
+		return $cmd->exec();
 	}
 }

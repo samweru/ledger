@@ -56,16 +56,21 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
         $stdio->end();
     });
 
-    Cli::cmd("sch ?", function() use($stdio){
+    Cli::cmd("sch ?", function(){
 
-        $stdio->write("sch <trx_type> <tenant_no> <amount>".PHP_EOL);
-        $stdio->write("sch last [<offset>]".PHP_EOL);
+        $help = array(
+
+            "sch <trx_type> <tenant_no> <amount>",
+            "sch last [<offset>]"
+        );
+        
+        return sprintf("\n%s", implode("\n", $help));
     });
 
     /**
      * sch last [<offset>]
      */
-    Cli::cmd("sch last", function(int $offset = null) use($flatbase, $stdio){
+    Cli::cmd("sch last", function(int $offset = null) use($flatbase){
 
         $rs = $flatbase->read()->in("trx_queue")->get()->getArrayCopy();
         $rs = array_reverse($rs);
@@ -75,13 +80,13 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
 
         array_splice($rs, $offset);
 
-        $stdio->write(Json::pp($rs) . PHP_EOL);
+        return Json::pp($rs);
     });
 
     /**
      *  sch <trx_type> <tenant_no> <amt>
      */
-    Cli::cmd("sch", function(string $trx_type, $tenant_no, $amt) use($book, $stdio, $rows){
+    Cli::cmd("sch", function(string $trx_type, $tenant_no, $amt) use($book, $rows){
 
         if(array_key_exists($trx_type, $rows["trx"])){
 
@@ -91,23 +96,30 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
 
                 $book->makeSchedule($trx_type, $amt, $token);
 
-                $stdio->write('Schedule successfully completed.' . PHP_EOL);
+                return 'Schedule successfully completed.';
             }
-            else $stdio->write("Transaction must be Type:Schedule!");
+            
+            return "Transaction must be Type:Schedule!";
         }
-        else $stdio->write('Failed to execute schedule!' . PHP_EOL); 
+
+        return 'Failed to execute schedule!';
     });
 
-    Cli::cmd("trx ?", function() use($stdio){
+    Cli::cmd("trx ?", function(){
 
-        $stdio->write("trx <trx_type> <trx_no> [<amount>]".PHP_EOL);
-        $stdio->write("trx last [<offset>]".PHP_EOL);
+        $help = array(
+
+            "trx <trx_type> <trx_no> [<amount>]",
+            "trx last [<offset>]"
+        );
+
+        return sprintf("%s", implode("\n", $help));
     });
 
     /**
      * trx last [<offset>]
      */
-    Cli::cmd("trx last", function(int $offset = null) use($flatbase, $stdio){
+    Cli::cmd("trx last", function(int $offset = null) use($flatbase){
 
         $rs = $flatbase->read()->in("trx")->get()->getArrayCopy();
         $rs = array_reverse($rs);
@@ -117,13 +129,13 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
 
         array_splice($rs, $offset);
 
-        $stdio->write(Json::pp($rs) . PHP_EOL);
+        return Json::pp($rs);
     });
 
     /**
      * trx <trx_type> <trx_no> <amt>
      */
-    Cli::cmd("trx", function($trx_type, $trx_no, $amt = null) use($book, $stdio, $rows){
+    Cli::cmd("trx", function($trx_type, $trx_no, $amt = null) use($book, $rows){
 
         if(array_key_exists($trx_type, $rows["trx"])){
 
@@ -133,32 +145,34 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
 
                     $book->makeTrx($trx_type, $trx_no, $amt);
 
-                    $stdio->write('Transaction successfully completed.' . PHP_EOL);
+                    return 'Transaction successfully completed.';
                 }
                 catch(\Exception $e){
 
-                    $stdio->write($e->getMessage());
+                    return $e->getMessage();
                 }
             }
-            else $stdio->write("Transaction must be Type:Payment!");
+            
+            return "Transaction must be Type:Payment!";
         }
-        else $stdio->write('Failed to execute transaction!' . PHP_EOL);
+        
+        return 'Failed to execute transaction!';
     });
 
-    Cli::cmd("bal ?", function() use($stdio){
+    Cli::cmd("bal ?", function(){
 
-        $stdio->write("bal <trx_no>".PHP_EOL);
+        return "bal <trx_no>";
     });
 
     /**
      * bal <trx_no>
      */
-    Cli::cmd("bal", function(string $trx_no) use($book, $stdio){
+    Cli::cmd("bal", function(string $trx_no) use($book){
 
         $bal = $book->getBal($trx_no);
 
-        $stdio->write(sprintf("Balance: %s", $bal));
+        return sprintf("Balance: %s", $bal);
     });
 
-    Cli::run($line);        
+    $stdio->write(Cli::run($line));        
 });
