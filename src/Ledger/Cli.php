@@ -38,7 +38,11 @@ class Cli{
         if(!empty($doc))
             $doc = Str::create(strval($doc))->replace(["/**","* ", "*/"], "");
 
-        return trim($doc);
+        $lines = [];
+        foreach(explode("\n", $doc) as $line)
+        	$lines[] = sprintf("  %s", trim($line));
+
+        return sprintf("%s\n", implode("\n", $lines));
 	}
 
 	public static function run(string $line){
@@ -46,6 +50,7 @@ class Cli{
 		$parts = static::splitLn($line);
 		$part1 = array_shift($parts);
 		$part2 = array_shift($parts);
+
 		$cmd_name = sprintf("%s %s", $part1, $part2);
 		
 		$cmd = static::getCmd($cmd_name);
@@ -54,11 +59,13 @@ class Cli{
 
 			$cmd_name = $part1;
 			$cmd = static::getCmd($cmd_name);
-			array_unshift($parts, $part2);
+
+			if(!empty($part2))
+				array_unshift($parts, $part2);
 		}
 
 		if(is_null($cmd))
-			new Raise("Command not found!");
+			new Raise("success:false|error:[command:unavailable]");
 
 		if(!empty($parts))
 			$cmd = $cmd->applyArgs($parts);

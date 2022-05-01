@@ -53,15 +53,17 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
 
     Cli::cmd("help", function(){
 
-        $help = array(
+        $help = [];
+        $help = array_merge($help, explode("\n", Cli::run("sch ?")));
+        $help = array_merge($help, explode("\n", Cli::run("trx ?")));
+        $help[] = Cli::run("bal ?");
+        $help[] = "trx:type ls";
 
-            Cli::run("sch ?"),
-            Cli::run("trx ?"),
-            Cli::run("bal ?"),
-            "trx:type ls"
-        );
+        $helps = [];
+        foreach($help as $line)
+            $helps[] = sprintf("  %s", $line);
 
-        return implode("\n", $help);
+        return sprintf("\n%s\n\n", implode("\n", $helps));
     });
 
     Cli::cmd("trx:type ls", function() use($flatbase){
@@ -107,9 +109,13 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
     });
 
     /**
-     *  sch <trx_type> <tenant_no> <amt>
+     *  sch <trx_type> <token> <amt>
+     *  
+     *  trx_type:string   Transaction Type - example Rent:Due
+     *  token:string      Other Identifiers - example type:tenant|id:001
+     *  amount:number     Transaction Amount
      */
-    Cli::cmd("sch", function(string $trx_type, $tenant_no, $amt) use($book){
+    Cli::cmd("sch", function(string $trx_type, string $token, $amt) use($book, $stdio){
 
         $trxType = $book->withTrxType($trx_type);
 
@@ -117,17 +123,17 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
 
             if($trxType->isType("schedule")){
 
-                $token = sprintf("type:tenant|id:%s", $tenant_no);
+                $trx_no = $book->makeSchedule($trx_type, $token, $amt);
 
-                $book->makeSchedule($trx_type, $amt, $token);
+                $stdio->setInput(sprintf("trx:descr %s ", $trx_no));
 
-                return 'Schedule successfully completed.';
+                return 'success:true|on:trx-schedule';
             }
             
-            return "Transaction must be Type:Schedule!";
+            return "success:false|on:trx-schedule|error:expected[type:schedule]";
         }
 
-        return 'Failed to execute schedule!';
+        return 'success:false|on:trx-schedule';
     });
 
     Cli::cmd("trx help", function(){
@@ -144,6 +150,14 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
         );
 
         return implode("\n", $help);
+    });
+
+    /**
+     * trx:descr <trx_no> <descr*>
+     */
+    Cli::cmd("trx:descr", function(string $trx_no, string $descr) use($stdio){
+
+        return sprintf("%s %s", $trx_no, $descr);
     });
 
     /**
@@ -164,8 +178,12 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
 
     /**
      * trx <trx_type> <trx_no> <amt>
+     * 
+     * trx_type:string Transaction Type - example Rent:Paid
+     * trx_no:string   Transaction Number
+     * amt:number      Transaction Amount
      */
-    Cli::cmd("trx", function($trx_type, $trx_no, $amt = null) use($book){
+    Cli::cmd("trx", function(string $trx_type, string $trx_no, $amt = null) use($book){
 
         $trxType = $book->withTrxType($trx_type);
 
@@ -177,7 +195,7 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
 
                     $book->makeTrx($trx_type, $trx_no, $amt);
 
-                    return 'Transaction successfully completed.';
+                    return "success:true|on:trx";
                 }
                 catch(\Exception $e){
 
@@ -185,10 +203,10 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
                 }
             }
             
-            return "Transaction must be Type:Payment!";
+            return "success:false|on:trx|error:expected[type:payment]";
         }
         
-        return 'Failed to execute transaction!';
+        return "success:false|on:trx";
     });
 
     Cli::cmd("bal help", function(){
@@ -203,12 +221,14 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
 
     /**
      * bal <trx_no>
+     * 
+     * trx_no:string Transaction number
      */
     Cli::cmd("bal", function(string $trx_no) use($book){
 
         $bal = $book->getBal($trx_no);
 
-        return sprintf("Balance: %s", $bal);
+        return sprintf("balance:%s", $bal);
     });
 
     try{

@@ -9,9 +9,12 @@ use Strukt\Raise;
 
 class Book{
 
+    private $trx_nos;
+
     public function __construct($db){
 
         $this->db = $db;
+        $this->trx_nos = [];
     }
 
     public function makeTrxNo(){
@@ -27,7 +30,7 @@ class Book{
             ->first();
 
         if(is_null($sch))
-        	new Raise("Schedule could not be found!");
+        	new Raise("success:false|error:[schedule:unavailable]");
 
         $status = "Pending";
 
@@ -59,7 +62,7 @@ class Book{
             $trxamt = Number::create($trx["amount"])->add($amt);
 
             if($trxamt->gt($sch["amount"]))
-            	new Raise("Inconsistent amount!");
+            	new Raise("success:false|error:[amount:inconsistent]");
 
             if($trxamt->lt($sch["amount"]) || $trxamt->equals($sch["amount"])){
 
@@ -87,11 +90,16 @@ class Book{
         $this->makeDblEntry($trx_type, $amt);
     }
 
-    public function makeSchedule($trx_type, $amt, $token, $status="Pending"){
+    public function makeSchedule(string $trx_type, 
+                                    string $token,
+                                    $amt,  
+                                    string $status = "Pending"){
+
+        $trx_no = $this->makeTrxNo();
 
         $this->db->insert()->in("trx_queue")->set(array(
 
-                "trx_no"=>$this->makeTrxNo(),
+                "trx_no"=>$trx_no,
                 'name' => $trx_type,
                 'amount'=>$amt,
                 'token'=>$token,
@@ -100,6 +108,8 @@ class Book{
             ->execute();
 
        $this->makeDblEntry($trx_type, $amt);
+
+       return $trx_no;
     }
 
     public function makeDblEntry($trx_type, $amt){
