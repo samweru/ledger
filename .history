@@ -108,3 +108,13 @@ exit
 trx:descr 11111 kjwehfk wekfkwhe welfkjlwe
 trx last
 exit
+trx:desrc
+trx:descr
+trx:last
+?
+help
+trx last
+exit
+trx:descr 1111
+eixt
+exit

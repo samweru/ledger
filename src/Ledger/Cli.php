@@ -69,7 +69,7 @@ class Cli{
 
 		$rFunc = Ref::func(static::$cmds[$cmd_name])->getRef();
 
-		if($rFunc->isVariadic()){
+		if($rFunc->isVariadic() && !empty($parts)){
 
 			$temp = $parts;
 			$parts = [];
@@ -87,7 +87,6 @@ class Cli{
 			$cmd = $cmd->applyArgs($parts);
 
 		$nargs = $rFunc->getNumberOfRequiredParameters();
-
 		if(count($parts) < $nargs)
 			return static::getDoc($cmd_name);
 
