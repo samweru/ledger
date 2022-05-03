@@ -155,9 +155,19 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
     /**
      * trx:descr <trx_no> <descr*>
      */
-    Cli::cmd("trx:descr", function(string $trx_no, ...$descr) use($stdio){
+    Cli::cmd("trx:descr", function(string $trx_no, ...$descr) use($stdio, $flatbase){
 
-        return sprintf("%s %s", $trx_no, implode("-", $descr));
+        $r = $flatbase->read()->in("trx_queue")->where("trx_no","==", $trx_no)->first();
+
+        if(array_key_exists("descr", $r))
+            if(!empty($r["descr"]))
+                return "success:false|on:schedule|error:[descr:exists]";
+
+        $r["descr"] = implode(" ", $descr);
+
+        $flatbase->update()->in("trx_queue")->set($r)->where("trx_no", "==", $trx_no)->execute();
+
+        return "success:true|on:schedule|update:descr";
     });
 
     /**

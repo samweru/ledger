@@ -118,3 +118,26 @@ exit
 trx:descr 1111
 eixt
 exit
+sch last
+trx DA34B81A81 test 1,2 3
+trx:descr DA34B81A81 test 1,2 3
+trx last
+sch last
+exit
+sch last
+trx:descr DA34B81A81 test 1 2 2
+sch last
+trx:descr DA34B81A81 test 1 2 2
+exit
+ls
+trx:ls
+trx ls
+?
+help
+txr:type ls
+trx:type ls
+sch Rent:Due type:tenant|id:1 7000
+trx:descr 091E1BCCC9 pitsolu paid rent
+trx last
+sch last
+exit
