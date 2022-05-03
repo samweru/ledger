@@ -155,9 +155,9 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
     /**
      * trx:descr <trx_no> <descr*>
      */
-    Cli::cmd("trx:descr", function(string $trx_no, string $descr) use($stdio){
+    Cli::cmd("trx:descr", function(string $trx_no, ...$descr) use($stdio){
 
-        return sprintf("%s %s", $trx_no, $descr);
+        return sprintf("%s %s", $trx_no, implode("-", $descr));
     });
 
     /**

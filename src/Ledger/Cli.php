@@ -67,12 +67,26 @@ class Cli{
 		if(is_null($cmd))
 			new Raise("success:false|error:[command:unavailable]");
 
+		$rFunc = Ref::func(static::$cmds[$cmd_name])->getRef();
+
+		if($rFunc->isVariadic()){
+
+			$temp = $parts;
+			$parts = [];
+
+			$params = $rFunc->getParameters();
+			foreach($params as $idx=>$param)
+				if(!$param->isVariadic())
+					$parts[] = array_shift($temp);
+
+			if(!empty($temp))
+				$parts = array_merge($parts, $temp);
+		}
+
 		if(!empty($parts))
 			$cmd = $cmd->applyArgs($parts);
 
-		$nargs = Ref::func(static::$cmds[$cmd_name])
-					->getRef()
-					->getNumberOfRequiredParameters();
+		$nargs = $rFunc->getNumberOfRequiredParameters();
 
 		if(count($parts) < $nargs)
 			return static::getDoc($cmd_name);
