@@ -8,17 +8,16 @@ use Strukt\Type\Number;
 use Strukt\Fs;
 
 use Ledger\Cli;
+use Ledger\Repo\Trx;
+use Ledger\Repo\TrxQ;
+use Ledger\Repo\TrxType;
 
-$storage = new Flatbase\Storage\Filesystem('./flatbase');
-$flatbase = new Flatbase\Flatbase($storage);
-
-$book = new Ledger\Book($flatbase);
+$book = new Ledger\Book();
 
 $stdio = new Clue\React\Stdio\Stdio();
 $stdio->setPrompt('Book> ');
 
-
-$stdio->setAutocomplete(function() use($flatbase, $stdio, $book){
+$stdio->setAutocomplete(function() use($stdio, $book){
 
     $line = trim($stdio->getInput());
 
@@ -32,7 +31,7 @@ $all = explode("\n", Strukt\Fs::cat(".history"));
 foreach($all as $history)
     $stdio->addHistory($history);
 
-$stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
+$stdio->on('data', function ($line) use ($stdio, $book){
 
     $line = rtrim($line);
 
@@ -66,9 +65,9 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
         return sprintf("\n%s\n\n", implode("\n", $helps));
     });
 
-    Cli::cmd("trx:type ls", function() use($flatbase){
+    Cli::cmd("trx:type ls", function(){
 
-        $rs = $flatbase->read()->in("trx_type")->get()->getArrayCopy();
+        $rs = TrxType::all();
 
         foreach($rs as $row)
             $rows[] = $row["name"];
@@ -85,7 +84,7 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
 
         $help = array(
 
-            "sch <trx_type> <tenant_no> <amount>",
+            "sch <trx_type> <token> <amount>",
             "sch last [<offset>]"
         );
         
@@ -95,9 +94,9 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
     /**
      * sch last [<offset>]
      */
-    Cli::cmd("sch last", function(int $offset = null) use($flatbase){
+    Cli::cmd("sch last", function(int $offset = null){
 
-        $rs = $flatbase->read()->in("trx_queue")->get()->getArrayCopy();
+        $rs = TrxQ::all();
         $rs = array_reverse($rs);
 
         if(is_null($offset) || $offset < 1)
@@ -155,9 +154,9 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
     /**
      * trx:descr <trx_no> <descr*>
      */
-    Cli::cmd("trx:descr", function(string $trx_no, ...$descr) use($stdio, $flatbase){
+    Cli::cmd("trx:descr", function(string $trx_no, ...$descr) use($stdio){
 
-        $r = $flatbase->read()->in("trx_queue")->where("trx_no","==", $trx_no)->first();
+        $r = TrxQ::firstByTrxNo($trx_no);
 
         if(array_key_exists("descr", $r))
             if(!empty($r["descr"]))
@@ -165,7 +164,7 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
 
         $r["descr"] = implode(" ", $descr);
 
-        $flatbase->update()->in("trx_queue")->set($r)->where("trx_no", "==", $trx_no)->execute();
+        TrxQ::updateByTrxNo($trx_no, $r);
 
         return "success:true|on:schedule|update:descr";
     });
@@ -173,9 +172,9 @@ $stdio->on('data', function ($line) use ($flatbase, $stdio, $book){
     /**
      * trx last [<offset>]
      */
-    Cli::cmd("trx last", function(int $offset = null) use($flatbase){
+    Cli::cmd("trx last", function(int $offset = null){
 
-        $rs = $flatbase->read()->in("trx")->get()->getArrayCopy();
+        $rs = Trx::all();
         $rs = array_reverse($rs);
 
         if(is_null($offset) || $offset < 1)

@@ -141,3 +141,42 @@ trx:descr 091E1BCCC9 pitsolu paid rent
 trx last
 sch last
 exit
+trx last
+sch last
+trx Rent:Paid
+trx Rent:Paid 091E1BCCC9 6000
+trx Rent:Paid 091E1BCCC9 500
+trx last
+bal 091E1BCCC9
+sch Rent:Due type:tenant|id:2 4500
+sch last
+sch last 20
+trx Rent:Paid 3DABA6C743 4000
+trx last
+bal 3DABA6C743
+help
+trx:type ls
+exit
+trx last
+exit
+trx last
+sch last
+bal 3DABA6C743
+exit
+sch last
+trx last
+exit
+trx last
+sch last
+bal 3DABA6C743
+trx last 20
+sch Rent:Due type:tenant|id:3 8000
+trx:descr 1E23534289 tenant 003
+sch last
+trx Rent:Paid 1E23534289 5000
+trx last
+bal 1E23534289
+help
+trx:type ls
+cls
+exit

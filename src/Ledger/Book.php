@@ -7,13 +7,20 @@ use Strukt\Type\Json;
 use Strukt\Type\Number;
 use Strukt\Raise;
 
+use Ledger\Repo\Trx;
+use Ledger\Repo\TrxQ;
+use Ledger\Repo\TrxType;
+use Ledger\Repo\TrxAlloc;
+use Ledger\Repo\Coa;
+
+use Ledger\Connection;
+
 class Book{
 
     private $trx_nos;
 
-    public function __construct($db){
+    public function __construct(){
 
-        $this->db = $db;
         $this->trx_nos = [];
     }
 
@@ -24,10 +31,7 @@ class Book{
 
     public function makeTrx($trx_type, $trx_no, $amt=null){
 
-        $sch = $this->db->read()->in("trx_queue")
-            ->where("trx_no", "==", $trx_no)
-            ->get()
-            ->first();
+        $sch = TrxQ::firstByTrxNo($trx_no);
 
         if(is_null($sch))
         	new Raise("success:false|error:[schedule:unavailable]");
@@ -40,22 +44,18 @@ class Book{
             $status = "Final";
         }
 
-        $trx = $this->db->read()->in("trx")
-            ->where("trx_no", "==", $trx_no)
-            ->get()
-            ->first();
+        $trx = Trx::firstByTrxNo($trx_no);
 
         if(is_null($trx)){
 
-            $this->db->insert()->in("trx")->set(array(
+            Trx::add(array(
 
-                    "trx_no"=>$sch["trx_no"],
-                    'name' => $trx_type,
-                    'amount'=>$amt,
-                    'token'=>$sch["token"],
-                    'status'=>$status
-                ))
-                ->execute();  
+                "trx_no"=>$sch["trx_no"],
+                'name' => $trx_type,
+                'amount'=>$amt,
+                'token'=>$sch["token"],
+                'status'=>$status
+            ));
         }
         else{
         	
@@ -69,23 +69,18 @@ class Book{
             	if($trxamt->equals($sch["amount"]))
             		$status = "Final";
 
-            	$this->db->update()->in("trx")
-	                ->set(array(
+                Trx::updateByTrxNo($trx_no, array(
 
-	                    "amount"=>$trxamt->yield(),
-	                    "status"=>$status
-	                ))
-	                ->where("trx_no", "==", $trx_no)            
-	                ->execute();
+                    "amount"=>$trxamt->yield(),
+                    "status"=>$status
+                ));
             }
         }
 
-        $this->db->update()->in("trx_queue")->set([
+        TrxQ::updateByTrxNo($trx_no, [
 
             "status"=>$status
-        ])
-        ->where("trx_no","==",$trx_no)
-        ->execute();      
+        ]);     
 
         $this->makeDblEntry($trx_type, $amt);
     }
@@ -97,15 +92,14 @@ class Book{
 
         $trx_no = $this->makeTrxNo();
 
-        $this->db->insert()->in("trx_queue")->set(array(
+        TrxQ::add(array(
 
-                "trx_no"=>$trx_no,
-                'name' => $trx_type,
-                'amount'=>$amt,
-                'token'=>$token,
-                'status'=>$status
-            ))
-            ->execute();
+            "trx_no"=>$trx_no,
+            'name' => $trx_type,
+            'amount'=>$amt,
+            'token'=>$token,
+            'status'=>$status
+        ));
 
        $this->makeDblEntry($trx_type, $amt);
 
@@ -114,10 +108,7 @@ class Book{
 
     public function makeDblEntry($trx_type, $amt){
 
-    	 $rTrxType = $this->db->read()->in('trx_type')
-            ->where("name", "==", $trx_type)
-            ->get()
-            ->first();
+        $rTrxType = TrxType::first($trx_type);
 
         list($dr, $cr) = explode("|", $rTrxType["token"]);
 
@@ -126,15 +117,9 @@ class Book{
 
     public function getBal($trx_no){
 
-    	$sch = $this->db->read()->in("trx_queue")
-            ->where("trx_no", "==", $trx_no)
-            ->get()
-            ->first();
+        $sch = TrxQ::firstByTrxNo($trx_no);
 
-        $trx = $this->db->read()->in("trx")
-            ->where("trx_no", "==", $trx_no)
-            ->get()
-            ->first();
+        $trx = Trx::firstByTrxNo($trx_no);
 
         if(is_null($trx))
             $trx["amount"] = 0;
@@ -145,7 +130,7 @@ class Book{
     public function withTrxType($trx_type){
 
         $trxs = null;
-        $rsTrxType = $this->db->read()->in("trx_type")->get()->getArrayCopy();
+        $rsTrxType = TrxType::all();
         foreach($rsTrxType as $rTrxType)
             $trxs[$rTrxType["name"]] = $rTrxType["type"];
 
@@ -171,18 +156,12 @@ class Book{
 
     public function getAlloc($coa_name){
 
-        $coa = $this->db->read()->in("coa")
-            ->where("name", "==", $coa_name)
-            ->get()
-            ->first();
+        $coa = Coa::firstByName($coa_name);
 
         list($coa_type, $term) = explode("|", $coa["rules"]);
         list($key, $type) = explode(":", $coa_type);
 
-        $alloc = $this->db->read()->in('trx_alloc')
-            ->where("name", "==", $coa_name)
-            ->get()
-            ->first();
+        $alloc = TrxAlloc::firstByCoaName($coa_name);
 
         $alloc["type"] = $type;
 
@@ -191,17 +170,15 @@ class Book{
 
     public function withAmount($amt){
 
-        return new class($this, $this->db, $amt){
+        return new class($this, $amt){
 
             private $book;
-            private $db;
             private $amt;
             private $trx;
 
-            public function __construct($book, $db, $amt){
+            public function __construct($book, $amt){
 
                 $this->book = $book;
-                $this->db = $db;
                 $this->amt = $amt;
                 $this->trx = [];
             }
@@ -248,13 +225,10 @@ class Book{
 
             private function doAlloc(array $trx){
 
-                $this->db->update()->in('trx_alloc')
-                    ->set([
+                TrxAlloc::updateByCoaName($trx["coa"], [
 
-                        "balance"=>$trx["bal"]
-                    ])
-                    ->where("name", "==", $trx["coa"])
-                    ->execute();
+                    "balance"=>$trx["bal"]
+                ]);
             }
 
             public function transfer(){
