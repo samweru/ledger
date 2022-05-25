@@ -1,7 +1,7 @@
 <?php
 
-use Strukt\Loop;
-use Strukt\Cmd;
+require "bootstrap.php";
+
 use Strukt\Type\Str;
 use Strukt\Type\Json;
 use Strukt\Type\Number;
@@ -12,30 +12,60 @@ use Ledger\Repo\Trx;
 use Ledger\Repo\TrxQ;
 use Ledger\Repo\TrxType;
 
-require "bootstrap.php";
-
 $book = new Ledger\Book();
 
-readline_read_history(".history");
+$stdio = new Clue\React\Stdio\Stdio();
+$stdio->setPrompt('Book> ');
 
-Loop::halt(function() use($book){
+$stdio->setAutocomplete(function() use($stdio, $book){
 
-    Cmd::add("help", function(){
+    $line = trim($stdio->getInput());
+
+    $stdio->moveCursorBy(0);
+
+    return [];
+});
+
+// load history
+$all = explode("\n", Strukt\Fs::cat(".history"));
+foreach($all as $history)
+    $stdio->addHistory($history);
+
+$stdio->on('data', function ($line) use ($stdio, $book){
+
+    $line = rtrim($line);
+
+    $all = $stdio->listHistory();
+
+    // skip empty line and duplicate of previous line
+    if ($line !== '' && $line !== end($all)) {
+
+        $stdio->addHistory($line);
+        $all[] = $line;
+        Fs::overwrite(".history", implode("\n", $all));
+    } 
+
+    Cli::cmd("exit", function() use($stdio){
+
+        $stdio->end();
+    });
+
+    Cli::cmd("help", function(){
 
         $help = [];
-        $help = array_merge($help, explode("\n", Cmd::exec("sch ?")));
-        $help = array_merge($help, explode("\n", Cmd::exec("trx ?")));
-        $help[] = Cmd::exec("bal ?");
+        $help = array_merge($help, explode("\n", Cli::run("sch ?")));
+        $help = array_merge($help, explode("\n", Cli::run("trx ?")));
+        $help[] = Cli::run("bal ?");
         $help[] = "trx:type ls";
 
         $helps = [];
         foreach($help as $line)
             $helps[] = sprintf("  %s", $line);
 
-        return sprintf("\n%s\n", implode("\n", $helps));
+        return sprintf("\n%s\n\n", implode("\n", $helps));
     });
 
-    Cmd::add("trx:type ls", function(){
+    Cli::cmd("trx:type ls", function(){
 
         $rs = TrxType::all();
 
@@ -45,12 +75,12 @@ Loop::halt(function() use($book){
         return implode("\n", $rows);
     });
 
-    Cmd::add("sch help", function(){
+    Cli::cmd("sch help", function(){
 
-        return Cmd::exec("sch ?");
+        return Cli::run("sch ?");
     });
 
-    Cmd::add("sch ?", function(){
+    Cli::cmd("sch ?", function(){
 
         $help = array(
 
@@ -64,7 +94,7 @@ Loop::halt(function() use($book){
     /**
      * sch last [<offset>]
      */
-    Cmd::add("sch last", function(int $offset = null){
+    Cli::cmd("sch last", function(int $offset = null){
 
         $rs = TrxQ::all();
         $rs = array_reverse($rs);
@@ -84,7 +114,7 @@ Loop::halt(function() use($book){
      *  token:string      Other Identifiers - example type:tenant|id:001
      *  amount:number     Transaction Amount
      */
-    Cmd::add("sch", function(string $trx_type, string $token, $amt) use($book){
+    Cli::cmd("sch", function(string $trx_type, string $token, $amt) use($book, $stdio){
 
         $trxType = $book->withTrxType($trx_type);
 
@@ -94,8 +124,7 @@ Loop::halt(function() use($book){
 
                 $trx_no = $book->makeSchedule($trx_type, $token, $amt);
 
-                // $stdio->setInput(sprintf("trx:descr %s ", $trx_no));
-                echo(sprintf("trx:descr %s ", $trx_no));
+                $stdio->setInput(sprintf("trx:descr %s ", $trx_no));
 
                 return 'success:true|on:trx-schedule';
             }
@@ -106,12 +135,12 @@ Loop::halt(function() use($book){
         return 'success:false|on:trx-schedule';
     });
 
-    Cmd::add("trx help", function(){
+    Cli::cmd("trx help", function(){
 
-        return Cmd::exec("trx ?");
+        return Cli::run("trx ?");
     });
 
-    Cmd::add("trx ?", function(){
+    Cli::cmd("trx ?", function(){
 
         $help = array(
 
@@ -125,7 +154,7 @@ Loop::halt(function() use($book){
     /**
      * trx:descr <trx_no> <descr*>
      */
-    Cmd::add("trx:descr", function(string $trx_no, ...$descr){
+    Cli::cmd("trx:descr", function(string $trx_no, ...$descr) use($stdio){
 
         $r = TrxQ::firstByTrxNo($trx_no);
 
@@ -143,7 +172,7 @@ Loop::halt(function() use($book){
     /**
      * trx last [<offset>]
      */
-    Cmd::add("trx last", function(int $offset = null){
+    Cli::cmd("trx last", function(int $offset = null){
 
         $rs = Trx::all();
         $rs = array_reverse($rs);
@@ -163,7 +192,7 @@ Loop::halt(function() use($book){
      * trx_no:string   Transaction Number
      * amt:number      Transaction Amount
      */
-    Cmd::add("trx", function(string $trx_type, string $trx_no, $amt = null) use($book){
+    Cli::cmd("trx", function(string $trx_type, string $trx_no, $amt = null) use($book){
 
         $trxType = $book->withTrxType($trx_type);
 
@@ -189,12 +218,12 @@ Loop::halt(function() use($book){
         return "success:false|on:trx";
     });
 
-    Cmd::add("bal help", function(){
+    Cli::cmd("bal help", function(){
 
-        return Cmd::exec("bal ?");
+        return Cli::run("bal ?");
     });
 
-    Cmd::add("bal ?", function(){
+    Cli::cmd("bal ?", function(){
 
         return "bal <trx_no>";
     });
@@ -204,37 +233,19 @@ Loop::halt(function() use($book){
      * 
      * trx_no:string Transaction number
      */
-    Cmd::add("bal", function(string $trx_no) use($book){
+    Cli::cmd("bal", function(string $trx_no) use($book){
 
         $bal = $book->getBal($trx_no);
 
         return sprintf("balance:%s", $bal);
     });
 
-
-    Cmd::add("exit", function(){
-
-        Loop::pause(false);
-        readline_write_history(".history");
-
-        exit("Bye bye!\n");
-    });
-
-    $line = trim(readline("Book>> ")); 
-
     try{
-
-        echo(sprintf("%s\n", Cli::run($line)));
-        readline_add_history($line); 
-    }
-    catch(\ArgumentCountError $e){
-
-        echo sprintf("%s\n", $e->getMessage());        
+        
+        $stdio->write(Cli::run($line));        
     }
     catch(\Exception $e){
 
-        echo sprintf("%s\n", $e->getMessage());
+        $stdio->write($e->getMessage());
     }
 });
-
-Loop::run();

@@ -2,48 +2,34 @@
 
 namespace Ledger;
 
-Use Strukt\Event;
+// Use Strukt\Event;
 Use Strukt\Raise;
 use Strukt\Ref;
 use Strukt\Type\Str;
+use Strukt\Cmd;
 
 class Cli{
-
-	public static $cmds;
-
-	public static function cmd($name, callable $func){
-
-		static::$cmds[$name] = $func;
-	}
 
 	public static function splitLn(string $line){
 
 		return preg_split('/\s+/', $line);
 	}
 
-	public static function getCmd($cmd_name){
+	// public static function getDoc($cmd_name){
 
-		if(array_key_exists($cmd_name, static::$cmds))
-			return Event::create(static::$cmds[$cmd_name]);		
+	// 	$rfunc = Ref::func(static::$cmds[$cmd_name])->getRef();
 
-		return null;
-	}
+ //        $doc = $rfunc->getDocComment();
 
-	public static function getDoc($cmd_name){
+ //        if(!empty($doc))
+ //            $doc = Str::create(strval($doc))->replace(["/**","* ", "*/"], "");
 
-		$rfunc = Ref::func(static::$cmds[$cmd_name])->getRef();
+ //        $lines = [];
+ //        foreach(explode("\n", $doc) as $line)
+ //        	$lines[] = sprintf("  %s", trim($line));
 
-        $doc = $rfunc->getDocComment();
-
-        if(!empty($doc))
-            $doc = Str::create(strval($doc))->replace(["/**","* ", "*/"], "");
-
-        $lines = [];
-        foreach(explode("\n", $doc) as $line)
-        	$lines[] = sprintf("  %s", trim($line));
-
-        return sprintf("%s\n", implode("\n", $lines));
-	}
+ //        return sprintf("%s\n", implode("\n", $lines));
+	// }
 
 	public static function run(string $line){
 		
@@ -53,12 +39,12 @@ class Cli{
 
 		$cmd_name = sprintf("%s %s", $part1, $part2);
 		
-		$cmd = static::getCmd($cmd_name);
+		$cmd = @Cmd::get($cmd_name);
 
 		if(is_null($cmd)){
 
 			$cmd_name = $part1;
-			$cmd = static::getCmd($cmd_name);
+			$cmd = @Cmd::get($cmd_name);
 
 			if(!empty($part2))
 				array_unshift($parts, $part2);
@@ -67,7 +53,7 @@ class Cli{
 		if(is_null($cmd))
 			new Raise("success:false|error:[command:unavailable]");
 
-		$rFunc = Ref::func(static::$cmds[$cmd_name])->getRef();
+		$rFunc = Ref::func($cmd)->getRef();
 
 		if($rFunc->isVariadic() && !empty($parts)){
 
@@ -84,12 +70,12 @@ class Cli{
 		}
 
 		if(!empty($parts))
-			$cmd = $cmd->applyArgs($parts);
+			return Cmd::exec($cmd_name, $parts);
 
-		$nargs = $rFunc->getNumberOfRequiredParameters();
-		if(count($parts) < $nargs)
-			return static::getDoc($cmd_name);
+		// $nargs = $rFunc->getNumberOfRequiredParameters();
+		// if(count($parts) < $nargs)
+			// return static::getDoc($cmd_name);
 
-		return $cmd->exec();
+		return Cmd::exec($cmd_name);
 	}
 }

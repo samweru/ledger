@@ -4,6 +4,9 @@ namespace Ledger\Repo;
 
 use Ledger\Connection;
 
+/**
+* Schedule
+*/
 class TrxQ{
 
 	public function firstByTrxNo(string $trx_no){
