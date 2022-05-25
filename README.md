@@ -12,7 +12,7 @@ Tasker is task manager. In this case it is used to run database tasks.
 ### Install Tasker
 
 ```
-wget https://github.com/samweru/strukt-tasker/releases/download/v1.0.0-alpha/tasker.phar #download
+wget https://github.com/samweru/strukt-tasker/releases/download/v1.0.1-alpha/tasker.phar #download
 chmod a+x tasker.phar #make executable
 mv tasker.phar tasker #rename
 ```
@@ -22,8 +22,10 @@ mv tasker.phar tasker #rename
 Before you start you'll need to seed the database.
 
 ```
-./tasker db:seed
+./tasker db:seed <facets>
 ```
+
+You can either add the `merch` or `rent` facet at this time.
 
 ### Other Tasker Commands
 
@@ -46,6 +48,7 @@ php book.php
 Help commands.
 
 ```
+help
 sch ?
 trx ?
 bal ?
