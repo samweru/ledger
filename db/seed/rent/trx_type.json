@@ -1,0 +1,12 @@
+[
+	{
+		"name":"Rent:Due",
+		"token":"Rent:Receivables|Rent:Income",
+		"type":"schedule"
+	},
+	{
+		"name":"Rent:Paid",
+		"token":"Cash|Rent:Receivables",
+		"type":"payment"
+	}
+]

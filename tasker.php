@@ -17,9 +17,15 @@ task('db:clean', function(){
     run("rm -rf flatbase/*");
 });
 
-task('db:seed', function(){
+task('db:seed', function($which){
     
-    run("php seeder.php");
+    run(sprintf("php seeder.php %s", $which), function($output) use($which){
+
+        if(empty($output))
+            $output = sprintf("[%s] was seeded.", $which);
+
+        echo sprintf("%s\n", $output);
+    });
 });
 
 task('db:ls', function(){

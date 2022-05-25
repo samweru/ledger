@@ -11,6 +11,7 @@ use Ledger\Cli;
 use Ledger\Repo\Trx;
 use Ledger\Repo\TrxQ;
 use Ledger\Repo\TrxType;
+use Ledger\Repo\TrxAlloc;
 
 require "bootstrap.php";
 
@@ -26,7 +27,6 @@ Loop::halt(function() use($book){
         $help = array_merge($help, explode("\n", Cmd::exec("sch ?")));
         $help = array_merge($help, explode("\n", Cmd::exec("trx ?")));
         $help[] = Cmd::exec("bal ?");
-        $help[] = "trx:type ls";
 
         $helps = [];
         foreach($help as $line)
@@ -35,12 +35,22 @@ Loop::halt(function() use($book){
         return sprintf("\n%s\n", implode("\n", $helps));
     });
 
+    Cmd::add("trx:alloc ls", function(){
+
+        $rs = TrxAlloc::all();
+
+        foreach($rs as $row)
+            $rows[] = sprintf("%s %s", str_pad($row["balance"], 10), $row["name"]);
+
+        return implode("\n", $rows);
+    });
+
     Cmd::add("trx:type ls", function(){
 
         $rs = TrxType::all();
 
         foreach($rs as $row)
-            $rows[] = $row["name"];
+            $rows[] = sprintf("%s - %s", str_pad($row["name"], 10), $row["type"]);
 
         return implode("\n", $rows);
     });
@@ -94,8 +104,7 @@ Loop::halt(function() use($book){
 
                 $trx_no = $book->makeSchedule($trx_type, $token, $amt);
 
-                // $stdio->setInput(sprintf("trx:descr %s ", $trx_no));
-                echo(sprintf("trx:descr %s ", $trx_no));
+                readline_add_history(sprintf("trx:descr %s ", $trx_no));
 
                 return 'success:true|on:trx-schedule';
             }
@@ -115,8 +124,11 @@ Loop::halt(function() use($book){
 
         $help = array(
 
+            "trx:pay <trx_type> <amount>",
             "trx <trx_type> <trx_no> [<amount>]",
-            "trx last [<offset>]"
+            "trx last [<offset>]",
+            "trx:type ls",
+            "trx:alloc ls"
         );
 
         return implode("\n", $help);
@@ -154,6 +166,38 @@ Loop::halt(function() use($book){
         array_splice($rs, $offset);
 
         return Json::pp($rs);
+    });
+
+    /**
+     * trx:pay <trx_type> <amt>
+     * 
+     * trx_type:string Transaction Type - example Rent:Paid
+     * amt:number      Transaction Amount
+     */
+    Cmd::add("trx:pay", function(string $trx_type, string $amt) use($book){
+
+         $trxType = $book->withTrxType($trx_type);
+
+        if($trxType->exists()){
+
+            if($trxType->isType("payment")){
+
+                try{
+
+                    $book->makePay($trx_type, $amt);
+
+                    return "success:true|on:trx-pay";
+                }
+                catch(\Exception $e){
+
+                    return $e->getMessage();
+                }
+            }
+            
+            return "success:false|on:trx-pay|error:expected[type:payment]";
+        }
+        
+        return "success:false|on:trx-pay";        
     });
 
     /**
@@ -220,7 +264,8 @@ Loop::halt(function() use($book){
         exit("Bye bye!\n");
     });
 
-    $line = trim(readline("Book>> ")); 
+
+    $line = trim(readline("Book>> "));
 
     try{
 

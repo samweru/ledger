@@ -29,6 +29,25 @@ class Book{
         return strtoupper(substr(sha1(rand()), 0, 10));
     }
 
+    /**
+    * Direct Trx Payment [status:Final]
+    */
+    public function makePay(string $trx_type, $amt, string $token = "type:pay|is:direct"){
+
+        $trx_no = $this->makeTrxNo();
+
+        Trx::add(array(
+
+            "trx_no"=>$trx_no,
+            'name' => $trx_type,
+            'amount'=>$amt,
+            'token'=>$token,
+            'status'=>"Final"
+        ));
+
+        $this->makeDblEntry($trx_type, $amt);
+    }
+
     public function makeTrx($trx_type, $trx_no, $amt=null){
 
         $sch = TrxQ::firstByTrxNo($trx_no);

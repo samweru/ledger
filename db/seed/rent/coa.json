@@ -1,0 +1,31 @@
+[
+	{
+		"name" :"Payables",
+		"code" :"2010",
+		"rules":"type:liability|term:long",
+		"token":"payables"
+	},
+	{
+		"name" :"Receivables",
+		"code" :"1050",
+		"rules":"type:asset|term:short",
+		"token":"receivables"
+	},
+	{
+		"name" :"Rent:Receivables",
+		"code" :"1051",
+		"rules":"type:asset|term:short",
+		"token":"receivables"
+	},
+	{
+		"name" :"Rent:Income",
+		"code" :"3051",
+		"rules":"type:revenue|term:short",
+		"token":"revenue"
+	},
+	{
+		"name" :"Cash",
+		"code" :"1030",
+		"rules":"type:asset|term:short"
+	}
+]

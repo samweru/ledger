@@ -15,21 +15,21 @@ class Cli{
 		return preg_split('/\s+/', $line);
 	}
 
-	// public static function getDoc($cmd_name){
+	public static function getDoc($cmd_name){
 
-	// 	$rfunc = Ref::func(static::$cmds[$cmd_name])->getRef();
+		$rfunc = Ref::func(Cmd::get($cmd_name))->getRef();
 
- //        $doc = $rfunc->getDocComment();
+        $doc = $rfunc->getDocComment();
 
- //        if(!empty($doc))
- //            $doc = Str::create(strval($doc))->replace(["/**","* ", "*/"], "");
+        if(!empty($doc))
+            $doc = Str::create(strval($doc))->replace(["/**","* ", "*/"], "");
 
- //        $lines = [];
- //        foreach(explode("\n", $doc) as $line)
- //        	$lines[] = sprintf("  %s", trim($line));
+        $lines = [];
+        foreach(explode("\n", $doc) as $line)
+        	$lines[] = sprintf("  %s", trim($line));
 
- //        return sprintf("%s\n", implode("\n", $lines));
-	// }
+        return sprintf("%s", implode("\n", $lines));
+	}
 
 	public static function run(string $line){
 		
@@ -72,9 +72,9 @@ class Cli{
 		if(!empty($parts))
 			return Cmd::exec($cmd_name, $parts);
 
-		// $nargs = $rFunc->getNumberOfRequiredParameters();
-		// if(count($parts) < $nargs)
-			// return static::getDoc($cmd_name);
+		$nargs = $rFunc->getNumberOfRequiredParameters();
+		if(count($parts) < $nargs)
+			return static::getDoc($cmd_name);
 
 		return Cmd::exec($cmd_name);
 	}

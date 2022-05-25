@@ -27,4 +27,11 @@ class TrxAlloc{
             ->where("name", "==", $name)
             ->execute();
 	}
+
+	public function all(){
+
+		$db = Connection::getDb();
+
+		return $db->read()->in("trx_alloc")->get()->getArrayCopy();
+	}
 }
