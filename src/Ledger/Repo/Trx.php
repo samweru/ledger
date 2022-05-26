@@ -6,6 +6,18 @@ use Ledger\Connection;
 
 class Trx{
 
+	public function allByTrxNo(string $trx_no){
+
+		$db = Connection::getDb();
+
+		$trxs = $db->read()->in("trx")
+            ->where("trx_no", "==", $trx_no)
+            ->get()
+            ->getArrayCopy();
+
+        return $trxs;
+	}
+
 	public function firstByTrxNo(string $trx_no){
 
 		$db = Connection::getDb();

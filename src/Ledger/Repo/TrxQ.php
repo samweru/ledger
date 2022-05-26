@@ -9,6 +9,18 @@ use Ledger\Connection;
 */
 class TrxQ{
 
+	public function allByTrxNo(string $trx_no){
+
+		$db = Connection::getDb();
+
+		$schs = $db->read()->in("trx_queue")
+            ->where("trx_no", "==", $trx_no)
+            ->get()
+            ->getArrayCopy();
+
+        return $schs;
+	}
+
 	public function firstByTrxNo(string $trx_no){
 
 		$db = Connection::getDb();

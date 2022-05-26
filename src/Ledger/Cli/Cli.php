@@ -1,6 +1,6 @@
 <?php
 
-namespace Ledger;
+namespace Ledger\Cli;
 
 // Use Strukt\Event;
 Use Strukt\Raise;
@@ -13,7 +13,7 @@ class Cli{
 	public static function splitLn(string $line){
 
 		return preg_split('/\s+/', $line);
-	}
+	} 
 
 	public static function getDoc($cmd_name){
 

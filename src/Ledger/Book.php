@@ -17,11 +17,9 @@ use Ledger\Connection;
 
 class Book{
 
-    // private $trx_nos;
-
     public function __construct(){
 
-        // $this->trx_nos = [];
+        //
     }
 
     public function makeTrxNo(){
@@ -54,50 +52,38 @@ class Book{
     public function makeTrx($trx_type, $trx_no, $amt=null){
 
         $sch = TrxQ::firstByTrxNo($trx_no);
-
         if(is_null($sch))
-        	new Raise("success:false|error:[schedule:unavailable]");
+            new Raise("success:false|error:[schedule:unavailable]");
+
+        $tsamt = Number::create($sch["amount"]); //Total Schedule Amount
+
+        $ttamt = Number::create(0); //Total Trx Amount
+        $trxs = Trx::allByTrxNo($trx_no);
+        foreach($trxs as $trx)
+            $ttamt = $ttamt->add($trx["amount"]);
+
+        $teamt = $ttamt->add($amt); //Total Expected Amount
 
         $status = "Pending";
-
-        if(is_null($amt) || empty($amt) || $amt == $sch["amount"]){
-
-            $amt = $sch["amount"];
+        if($tsamt->equals($teamt))
             $status = "Final";
-        }
 
-        $trx = Trx::firstByTrxNo($trx_no);
+        if($teamt->gt($tsamt))
+            new Raise("success:false|error:amt[exceeded:sch-amt]");
 
-        if(is_null($trx)){
+        Trx::add(array(
 
-            Trx::add(array(
+            "trx_no"=>$sch["trx_no"],
+            'name' => $trx_type,
+            'amount'=>$amt,
+            'token'=>$sch["token"],
+            'status'=>$status
+        ));
 
-                "trx_no"=>$sch["trx_no"],
-                'name' => $trx_type,
-                'amount'=>$amt,
-                'token'=>$sch["token"],
-                'status'=>$status
-            ));
-        }
-        else{
-        	
-            $trxamt = Number::create($trx["amount"])->add($amt);
+        Trx::updateByTrxNo($trx_no, array(
 
-            if($trxamt->gt($sch["amount"]))
-            	new Raise("success:false|error:[amount:inconsistent]");
-
-            if($trxamt->lt($sch["amount"]) || $trxamt->equals($sch["amount"])){
-
-            	if($trxamt->equals($sch["amount"]))
-            		$status = "Final";
-
-                Trx::updateByTrxNo($trx_no, array(
-
-                    "amount"=>$trxamt->yield(),
-                    "status"=>$status
-                ));
-            }
-        }
+            "status"=>$status
+        ));
 
         TrxQ::updateByTrxNo($trx_no, [
 
@@ -140,16 +126,22 @@ class Book{
         $this->withAmount($amt)->doDebit($dr)->doCredit($cr)->transfer();
     }
 
-    public function getBal($trx_no){
+    public function getBal(string $trx_no){
 
+        $tsamt = Number::create(0); //Total Schedule Amount
         $sch = TrxQ::firstByTrxNo($trx_no);
+        if(!empty($sch))
+            $tsamt = $tsamt->add($sch["amount"]);
 
-        $trx = Trx::firstByTrxNo($trx_no);
+        $ttamt = Number::create(0); //Total Trx Amount
+        $trxs = Trx::allByTrxNo($trx_no);        
+        foreach($trxs as $trx)
+            $ttamt = $ttamt->add($trx["amount"]);
 
-        if(is_null($trx))
-            $trx["amount"] = 0;
+        if($tsamt->equals(0))
+            return 0;
 
-        return Number::create($sch["amount"])->subtract($trx["amount"])->yield();
+        return $tsamt->subtract($ttamt)->yield();
     }
 
     public function withTrxType($trx_type){

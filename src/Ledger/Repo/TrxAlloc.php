@@ -32,6 +32,19 @@ class TrxAlloc{
 
 		$db = Connection::getDb();
 
-		return $db->read()->in("trx_alloc")->get()->getArrayCopy();
+		$coas = $db->read()->in("coa")->get()->getArrayCopy();
+		foreach($coas as $coa)
+			$all[$coa["name"]] = $coa["rules"];
+
+		$allocs = $db->read()->in("trx_alloc")->get()->getArrayCopy();
+		foreach($allocs as $alloc)
+			$rs[] = array(
+
+				"balance"=>$alloc["balance"],
+				"name"=>$alloc["name"],
+				"rules"=>$all[$alloc["name"]]
+			);
+
+		return $rs; 
 	}
 }

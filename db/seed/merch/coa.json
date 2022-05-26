@@ -81,13 +81,13 @@
 	},
 	{
 		"name" :"Payables",
-		"code" :"0001",
+		"code" :"4100",
 		"rules":"type:liability|term:long",
 		"token":"payables"
 	},
 	{
 		"name" :"Receivables",
-		"code" :"0002",
+		"code" :"4200",
 		"rules":"type:asset|term:short",
 		"token":"receivables"
 	}

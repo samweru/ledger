@@ -7,7 +7,8 @@ use Strukt\Type\Json;
 use Strukt\Type\Number;
 use Strukt\Fs;
 
-use Ledger\Cli;
+use Ledger\Cli\Cli;
+use Ledger\Cli\Buffer;
 use Ledger\Repo\Trx;
 use Ledger\Repo\TrxQ;
 use Ledger\Repo\TrxType;
@@ -40,7 +41,9 @@ Loop::halt(function() use($book){
         $rs = TrxAlloc::all();
 
         foreach($rs as $row)
-            $rows[] = sprintf("%s %s", str_pad($row["balance"], 10), $row["name"]);
+            $rows[] = sprintf("%s %s %s", str_pad($row["balance"], 10), 
+                                            str_pad($row["name"], 17),
+                                            $row["rules"]);
 
         return implode("\n", $rows);
     });
@@ -104,7 +107,7 @@ Loop::halt(function() use($book){
 
                 $trx_no = $book->makeSchedule($trx_type, $token, $amt);
 
-                readline_add_history(sprintf("trx:descr %s ", $trx_no));
+                Buffer::add("history", sprintf("trx:descr %s ", $trx_no));
 
                 return 'success:true|on:trx-schedule';
             }
@@ -124,11 +127,13 @@ Loop::halt(function() use($book){
 
         $help = array(
 
-            "trx:pay <trx_type> <amount>",
             "trx <trx_type> <trx_no> [<amount>]",
             "trx last [<offset>]",
+            "trx:id <trx_no>",
+            "trx:pay <trx_type> <amount>",
             "trx:type ls",
-            "trx:alloc ls"
+            "trx:alloc ls",
+            "trx:descr <trx_no> <descr*>"
         );
 
         return implode("\n", $help);
@@ -233,6 +238,39 @@ Loop::halt(function() use($book){
         return "success:false|on:trx";
     });
 
+    /**
+    * trx:id <trx_no>
+    * 
+    * trx_no:string Transaction number
+    */
+    Cmd::add("trx:id", function(string $trx_no){
+
+        $schs = TrxQ::allByTrxNo($trx_no);
+        $trxs = Trx::allByTrxNo($trx_no);
+
+        $bal = null;
+        $sch = reset($schs);
+        if(empty($sch))
+            $bal = 0;
+
+        foreach(array_merge($schs, $trxs) as $trx){
+
+            unset($trx["trx_no"], $trx["status"]);
+            $all["transfers"][] = $trx;
+        }
+
+        if(is_null($bal))
+            $bal = Str::create(Cmd::exec("bal", [$trx_no]))->replace("balance:", "")->yield();
+
+        $all = array_merge($all, array(
+
+            "balance"=>$bal,
+            "status"=>$bal==0?"Final":$sch["status"]
+        ));
+
+        return Json::pp($all);
+    });
+
     Cmd::add("bal help", function(){
 
         return Cmd::exec("bal ?");
@@ -270,11 +308,15 @@ Loop::halt(function() use($book){
     try{
 
         echo(sprintf("%s\n", Cli::run($line)));
-        readline_add_history($line); 
+
+        Buffer::attach("history", $line);
+        $history = Buffer::purge("history");
+        foreach($history as $line)
+            readline_add_history($line); 
     }
     catch(\ArgumentCountError $e){
 
-        echo sprintf("%s\n", $e->getMessage());        
+        echo "error:either[args:inconsistent|args:invalid]\n";        
     }
     catch(\Exception $e){
 
