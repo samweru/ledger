@@ -17,7 +17,7 @@
 	{
 		"name":"Drawings",
 		"code":"9000",
-		"rules":"type:contra-capital|term:long"
+		"rules":"type:contra-equity|term:long"
 	},
 	{
 		"name":"Purchase",
@@ -28,6 +28,11 @@
 		"name":"Purchase:Returns",
 		"code":"8100",
 		"rules":"type:contra-expense|term:short"
+	},
+	{
+		"name":"Purchase:Discount",
+		"code":"8200",
+		"rules":"type:contra-expense|type:short"		
 	},
 	{
 		"name":"Sales",
@@ -50,19 +55,14 @@
 		"rules":"type:liability|term:short"
 	},
 	{
+		"name":"Sales:Discount",
+		"code":"6200",
+		"rules":"type:contra-revenue|term:short"		
+	},
+	{
 		"name":"Furniture",
 		"code":"5000",
 		"rules":"type:asset|term:long"	
-	},
-	{
-		"name":"Discount:Received",
-		"code":"4000",
-		"rules":"type:income"		
-	},
-	{
-		"name":"Discount:Allowed",
-		"code":"4100",
-		"rules":"type:expense|term:short"		
 	},
 	{
 		"name":"Advertising",

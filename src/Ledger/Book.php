@@ -17,11 +17,11 @@ use Ledger\Connection;
 
 class Book{
 
-    private $trx_nos;
+    // private $trx_nos;
 
     public function __construct(){
 
-        $this->trx_nos = [];
+        // $this->trx_nos = [];
     }
 
     public function makeTrxNo(){
@@ -30,7 +30,7 @@ class Book{
     }
 
     /**
-    * Direct Trx Payment [status:Final]
+    * Direct payment no schedule [status:Final]
     */
     public function makePay(string $trx_type, $amt, string $token = "type:pay|is:direct"){
 
@@ -48,6 +48,9 @@ class Book{
         $this->makeDblEntry($trx_type, $amt);
     }
 
+    /**
+    * Make payment that corresponds to schedule
+    */
     public function makeTrx($trx_type, $trx_no, $amt=null){
 
         $sch = TrxQ::firstByTrxNo($trx_no);
@@ -104,6 +107,9 @@ class Book{
         $this->makeDblEntry($trx_type, $amt);
     }
 
+    /**
+    * Make schedule for payment - preparation for transaction
+    */
     public function makeSchedule(string $trx_type, 
                                     string $token,
                                     $amt,  
@@ -207,10 +213,16 @@ class Book{
                 $alloc = $this->book->getAlloc($coa_name);
 
                 $bal = Number::create($alloc["balance"]);
-                if(in_array($alloc["type"], ["liability", "revenue"]))
+                if(in_array($alloc["type"], ["liability", 
+                                                "revenue",
+                                                "contra-revenue"]))
                     $bal = $bal->subtract($this->amt);
 
-                if(in_array($alloc["type"], ["asset", "equity", "expense"]))
+                if(in_array($alloc["type"], ["contra-equity", 
+                                                "contra-expense",
+                                                "asset", 
+                                                "equity", 
+                                                "expense"]))
                     $bal = $bal->add($this->amt);    
 
                 $this->trx["dr"] = array(
@@ -227,10 +239,16 @@ class Book{
                 $alloc = $this->book->getAlloc($coa_name);
 
                 $bal = Number::create($alloc["balance"]);
-                if(in_array($alloc["type"], ["liability", "revenue"]))
+                if(in_array($alloc["type"], ["liability", 
+                                                "revenue",
+                                                "contra-revenue"]))
                     $bal = $bal->add($this->amt);
 
-                if(in_array($alloc["type"], ["asset", "equity", "expense"]))
+                if(in_array($alloc["type"], ["contra-equity", 
+                                                "contra-expense",
+                                                "asset", 
+                                                "equity", 
+                                                "expense"]))
                     $bal = $bal->subtract($this->amt);
 
                 $this->trx["cr"] = array(

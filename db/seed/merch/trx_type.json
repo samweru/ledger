@@ -60,13 +60,13 @@
 		"type":"payment"
 	},
 	{
-		"name":"disc:recv",
-		"token":"Payables|Discount:Received",
+		"name":"pur:disc",
+		"token":"Payables|Purchase:Discount",
 		"type":"payment"
 	},
 	{
 		"name":"sale:ret",
-		"token":"Sales:Return|Receivables",
+		"token":"Sales:Returns|Receivables",
 		"type":"payment"
 	},
 	{
@@ -75,8 +75,8 @@
 		"type":"payment"
 	},
 	{
-		"name":"disc:allow",
-		"token":"Discount:Allowed|Receivables",
+		"name":"sale:disc",
+		"token":"Sales:Discount|Receivables",
 		"type":"payment"
 	},
 	{
@@ -87,6 +87,11 @@
 	{
 		"name":"pay:rent",
 		"token":"Payables|Cash",
+		"type":"payment"
+	},
+	{
+		"name":"draw:stock",
+		"token":"Drawings|Purchase",
 		"type":"payment"
 	}
 ]
