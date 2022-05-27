@@ -370,3 +370,5 @@ trx
 trx\040last
 trx:id
 bal
+trx\040last
+trx:alloc\040ls

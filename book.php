@@ -33,6 +33,22 @@ readline_completion_function(function($line, $idx){
             if($ln->notEquals($cmd))
                 $cmds[$cmd] = $cmd;
 
+    $tschs = TrxType::getByType("schedule");
+    foreach($tschs as $tsch){
+
+        $cmdsch = sprintf("sch %s", $tsch["name"]);
+        if($ln->notEquals($cmdsch) && !$ln->empty())
+            $cmds[$cmdsch] = $tsch["name"];
+    }
+
+    $ttrxs = TrxType::getByType("payment");
+    foreach($ttrxs as $ttrx){
+
+        $cmdtrx = sprintf("trx %s", $ttrx["name"]);
+        if($ln->notEquals($cmdtrx) && !$ln->empty())
+            $cmds[$cmdtrx] = $ttrx["name"];
+    }
+
     $line = $ln->yield();
 
     $matches = [];
