@@ -49,7 +49,7 @@ class Book{
     /**
     * Make payment that corresponds to schedule
     */
-    public function makeTrx($trx_type, $trx_no, $amt=null){
+    public function makeTrx(string $trx_type, string $trx_no, $amt){
 
         $sch = TrxQ::firstByTrxNo($trx_no);
         if(is_null($sch))
@@ -62,7 +62,18 @@ class Book{
         foreach($trxs as $trx)
             $ttamt = $ttamt->add($trx["amount"]);
 
-        $teamt = $ttamt->add($amt); //Total Expected Amount
+        //Make balance positive
+        $bal = $ttamt->subtract($tsamt)->negate();
+
+        $pamt = Number::create(0); //Payment Amount
+        if(!is_null($amt))
+            $pamt = $pamt->add($amt);
+
+        //When paid amount is empty check balance
+        if($pamt->equals(0))
+            $pamt = $pamt->add($bal);
+
+        $teamt = $ttamt->add($pamt); //Total Expected Amount
 
         $status = "Pending";
         if($tsamt->equals($teamt))
@@ -75,7 +86,7 @@ class Book{
 
             "trx_no"=>$sch["trx_no"],
             'name' => $trx_type,
-            'amount'=>$amt,
+            'amount'=>$pamt->yield(),
             'token'=>$sch["token"],
             'status'=>$status
         ));
@@ -90,7 +101,7 @@ class Book{
             "status"=>$status
         ]);     
 
-        $this->makeDblEntry($trx_type, $amt);
+        $this->makeDblEntry($trx_type, $pamt->yield());
     }
 
     /**

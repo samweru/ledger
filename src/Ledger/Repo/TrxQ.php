@@ -21,6 +21,18 @@ class TrxQ{
         return $schs;
 	}
 
+	public function allByStatus(string $status){
+
+		$db = Connection::getDb();
+
+		$schs = $db->read()->in("trx_queue")
+            ->where("status", "==", $status)
+            ->get()
+            ->getArrayCopy();
+
+        return $schs;
+	}
+
 	public function firstByTrxNo(string $trx_no){
 
 		$db = Connection::getDb();

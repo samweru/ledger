@@ -6,6 +6,18 @@ use Ledger\Connection;
 
 class TrxType{
 
+	public function getByType($type){
+
+		$db = Connection::getDb();
+
+		$types = $db->read()->in("trx_type")
+            ->where("type", "==", $type)
+            ->get()
+            ->getArrayCopy();
+
+        return $types;
+	}
+
 	public function first(string $name = null){
 
 		$db = Connection::getDb();

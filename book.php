@@ -5,6 +5,7 @@ use Strukt\Cmd;
 use Strukt\Type\Str;
 use Strukt\Type\Json;
 use Strukt\Type\Number;
+use Strukt\Type\Arr;
 use Strukt\Fs;
 
 use Ledger\Cli\Cli;
@@ -19,6 +20,40 @@ require "bootstrap.php";
 $book = new Ledger\Book();
 
 readline_read_history(".history");
+
+readline_completion_function(function($line, $idx){
+
+    $rli = readline_info();
+    $ln = Str::create(trim(substr($rli['line_buffer'], 0, $rli['end'])));
+
+    $cmds = [];
+    $cmdls = Cmd::ls();
+    foreach($cmdls as $cmd)
+        if(!Str::create($cmd)->startsWith("init"))
+            if($ln->notEquals($cmd))
+                $cmds[$cmd] = $cmd;
+
+    $line = $ln->yield();
+
+    $matches = [];
+    $cmdkeys = preg_grep("/^$line/", array_keys($cmds));
+    foreach($cmdkeys as $key){
+
+        $sKey = Str::create($key);
+        if($sKey->startsWith($line) && !$ln->empty())
+            $match = Arr::create($sKey->split(" "))->last()->yield();
+
+        if($sKey->endsWith("ls"))
+            $match = $key;
+        
+        if($ln->empty())
+            $match = $cmds[$key];
+
+        $matches[] = $match;
+    }
+
+    return array_flip(array_flip($matches));
+});
 
 Loop::halt(function() use($book){
 
@@ -41,11 +76,11 @@ Loop::halt(function() use($book){
         $rs = TrxAlloc::all();
 
         foreach($rs as $row)
-            $rows[] = sprintf("%s %s %s", str_pad($row["balance"], 10), 
+            $rows[] = sprintf("  %s %s %s", str_pad($row["balance"], 10), 
                                             str_pad($row["name"], 17),
                                             $row["rules"]);
 
-        return implode("\n", $rows);
+        return sprintf("\n%s\n", implode("\n", $rows));
     });
 
     Cmd::add("trx:type ls", function(){
@@ -53,9 +88,9 @@ Loop::halt(function() use($book){
         $rs = TrxType::all();
 
         foreach($rs as $row)
-            $rows[] = sprintf("%s - %s", str_pad($row["name"], 10), $row["type"]);
+            $rows[] = sprintf("  %s - %s", str_pad($row["name"], 10), $row["type"]);
 
-        return implode("\n", $rows);
+        return sprintf("\n%s\n", implode("\n", $rows));
     });
 
     Cmd::add("sch help", function(){
@@ -133,7 +168,8 @@ Loop::halt(function() use($book){
             "trx:pay <trx_type> <amount>",
             "trx:type ls",
             "trx:alloc ls",
-            "trx:descr <trx_no> <descr*>"
+            "trx:descr <trx_no> <descr*>",
+            "trx:status <status>"
         );
 
         return implode("\n", $help);
@@ -206,7 +242,7 @@ Loop::halt(function() use($book){
     });
 
     /**
-     * trx <trx_type> <trx_no> <amt>
+     * trx <trx_type> <trx_no> [<amt>]
      * 
      * trx_type:string Transaction Type - example Rent:Paid
      * trx_no:string   Transaction Number
@@ -246,29 +282,65 @@ Loop::halt(function() use($book){
     Cmd::add("trx:id", function(string $trx_no){
 
         $schs = TrxQ::allByTrxNo($trx_no);
+        if(empty($schs))
+            return "error:trx|either:[trx:non-existsent|trx-type:direct-payment]";
+
         $trxs = Trx::allByTrxNo($trx_no);
 
-        $bal = null;
-        $sch = reset($schs);
-        if(empty($sch))
-            $bal = 0;
+        $rs = [];
+        foreach(array_merge($schs, $trxs) as $trx)
+            $rs["transfers"][] = array(
 
-        foreach(array_merge($schs, $trxs) as $trx){
+                "name"=>$trx["name"],
+                "amount"=>$trx["amount"],
+                "token"=>$trx["token"]
+            );
 
-            unset($trx["trx_no"], $trx["status"]);
-            $all["transfers"][] = $trx;
-        }
+        $bal = Number::create(0);
+        $sBal = Str::create(Cmd::exec("bal", [$trx_no]))->replace("balance:", "")->yield();
+        $bal = $bal->add($sBal);
 
-        if(is_null($bal))
-            $bal = Str::create(Cmd::exec("bal", [$trx_no]))->replace("balance:", "")->yield();
+        $status = "Final";
+        if(!$bal->equals(0))
+            $status = "Pending";
 
-        $all = array_merge($all, array(
+        $rs = array_merge($rs, array(
 
-            "balance"=>$bal,
-            "status"=>$bal==0?"Final":$sch["status"]
+            "balance"=>$bal->yield(),
+            "status"=>$status
         ));
 
-        return Json::pp($all);
+        return Json::pp($rs);
+    });
+
+    /**
+    * trx:status <status>
+    * 
+    * status:string Either pending|final
+    */
+    Cmd::add("trx:status", function(string $status){
+
+        $status = ucfirst($status);
+        if(!in_array($status, ["Pending", "Final"]))
+            return "error:either[status:pending|status:final]";
+
+        $schs = TrxQ::allByStatus(ucfirst($status));
+        if(empty($schs))
+            return "success:true|message:not-found";
+
+        $rs = [];
+        foreach($schs as $sch){
+
+            $row = sprintf("  %s %s", str_pad($sch["trx_no"], 10), 
+                                        str_pad($sch["name"], 10));
+
+            if($status == "Pending")
+                $row = sprintf("%s %s", $row, Cmd::exec("bal", [$sch["trx_no"]]));
+
+            $rs[] = $row;
+        }
+
+        return sprintf("\n%s\n", implode("\n", $rs));
     });
 
     Cmd::add("bal help", function(){
